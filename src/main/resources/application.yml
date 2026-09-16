@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: chat-service
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 1
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    nacos:
+      discovery:
+        username: nacos
+        password: ${NACOS_PASSWORD}
+  config:
+    import: optional:classpath:application-local.yml
