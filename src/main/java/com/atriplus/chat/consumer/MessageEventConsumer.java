@@ -15,6 +15,7 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Profile;
 
 import java.io.IOException;
 
@@ -22,6 +23,7 @@ import java.io.IOException;
  * 消息事件消费者
  */
 @Component
+@Profile("rabbitmq")
 public class MessageEventConsumer {
 
     /**

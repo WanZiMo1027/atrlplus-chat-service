@@ -2,6 +2,7 @@ package com.atriplus.chat.service;
 
 import com.atriplus.chat.client.dto.AgentChatResponse;
 import com.atriplus.chat.config.RabbitMqConfig;
+import com.atriplus.chat.dto.ChatTarget;
 import com.atriplus.chat.dto.QQReplyEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,15 +12,22 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 /** 把 Agent 结果发布给 Python；不更改原消息缓冲与 Agent 调用流程。 */
 @Service
+@Profile("rabbitmq")
 @RequiredArgsConstructor
 @Slf4j
-public class ReplyEventPublisher {
+public class ReplyEventPublisher implements ReplyGateway {
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
+
+    @Override
+    public void send(String conversationId, ChatTarget target, AgentChatResponse response) {
+        publish(conversationId, response);
+    }
 
     public void publish(String conversationId, AgentChatResponse response) {
         QQReplyEvent event = new QQReplyEvent(conversationId, response.shouldReply(), response.reply());

@@ -4,6 +4,7 @@ import com.atriplus.chat.client.AgentClient;
 import com.atriplus.chat.client.dto.AgentChatRequest;
 import com.atriplus.chat.client.dto.AgentChatResponse;
 import com.atriplus.chat.dto.BufferedMessage;
+import com.atriplus.chat.dto.ChatTarget;
 import com.atriplus.chat.client.dto.ChatMessageItem;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -51,7 +52,7 @@ public class MessageBufferService {
 
     private final AgentClient agentClient;
 
-    private final ReplyEventPublisher replyEventPublisher;
+    private final ReplyGateway replyGateway;
 
     private final TaskExecutor messageFlushExecutor;
 
@@ -188,8 +189,13 @@ public class MessageBufferService {
         try {
             AgentChatResponse response = agentClient.chat(request);
             log.info("shouldReply:{}, reply:{}", response.shouldReply(), response.reply());
-            // Agent 返回后发布原始回复协议，Python 决定是否真正发送 QQ。
-            replyEventPublisher.publish(conversationId, response);
+            ChatTarget target = messages.stream()
+                    .map(BufferedMessage::target)
+                    .filter(java.util.Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+            // 主要流程：将 Agent 结果交给当前 profile 对应的回复出口。
+            replyGateway.send(conversationId, target, response);
         } catch (Exception e) {
             log.error("调用代理聊天接口或发布回复失败，conversationId={}", conversationId, e);
         }

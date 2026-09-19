@@ -1,6 +1,7 @@
 package com.atriplus.chat.service;
 
 import com.atriplus.chat.dto.BufferedMessage;
+import com.atriplus.chat.dto.IncomingChatMessage;
 import com.atriplus.chat.event.MessageDetectedEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
@@ -47,8 +48,6 @@ public class MessageIngestService {
 
         String text = textBuilder.toString();
 
-        BufferedMessage message = new BufferedMessage(event.eventId(), senderName, text);
-
         // 直接使用群名作为 conversationId
         String conversationId = payload.path("conversationName").asText("").trim();
 
@@ -56,8 +55,22 @@ public class MessageIngestService {
             conversationId = "unknown";
         }
 
-        messageBufferService.addMessage(conversationId, message);
+        ingest(new IncomingChatMessage(event.eventId(), conversationId, senderName, text, null));
 
         log.info("消息已进入缓冲区 eventId={}, senderName={}, text={}", event.eventId(), senderName, text);
+    }
+
+    /**
+     * 接收适配器已经标准化的消息。
+     */
+    public void ingest(IncomingChatMessage event) {
+        // 主要流程：将统一消息持久化到 Redis 缓冲，后续由定时任务批量调用 Agent。
+        BufferedMessage message = new BufferedMessage(
+                event.eventId(),
+                event.senderName(),
+                event.text(),
+                event.target()
+        );
+        messageBufferService.addMessage(event.conversationId(), message);
     }
 }

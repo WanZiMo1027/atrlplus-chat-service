@@ -5,8 +5,10 @@ import org.springframework.amqp.core.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
+@Profile("rabbitmq")
 public class RabbitMqConfig {
 
     // 回复协议集中定义；与 Python config.py 的 direct / durable 配置一致。
