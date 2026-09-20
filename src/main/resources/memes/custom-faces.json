@@ -1,0 +1,82 @@
+[
+  {
+    "id": "meme-001",
+    "name": "菲比冲拳",
+    "tags": [],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_82BDA008591311E9D57CD2CC4EE38254_0_0/0",
+    "md5": "82BDA008591311E9D57CD2CC4EE38254",
+    "enabled": true
+  },
+  {
+    "id": "meme-002",
+    "name": "哭脸流泪",
+    "tags": ["哭脸", "流泪", "悲伤"],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_02E50BDC1D155D4EFE91D58EB8089484_0_0/0",
+    "md5": "02E50BDC1D155D4EFE91D58EB8089484",
+    "enabled": true
+  },
+  {
+    "id": "meme-003",
+    "name": "小睦疑惑",
+    "tags": ["疑惑"],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_1E069B611F93D29CD615343BA48CCB74_0_0/0",
+    "md5": "1E069B611F93D29CD615343BA48CCB74",
+    "enabled": true
+  },
+  {
+    "id": "meme-004",
+    "name": "大肥鱼害怕",
+    "tags": ["害怕"],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_DC5CBC0CF60D75D944F0AEE52F06B13B_0_0/0",
+    "md5": "DC5CBC0CF60D75D944F0AEE52F06B13B",
+    "enabled": true
+  },
+  {
+    "id": "meme-005",
+    "name": "大肥鱼装傻",
+    "tags": ["阿巴阿巴", "装傻"],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_ACB39C99788D6BFF9CC2C2B90F434E50_0_0/0",
+    "md5": "ACB39C99788D6BFF9CC2C2B90F434E50",
+    "enabled": true
+  },
+  {
+    "id": "meme-006",
+    "name": "大肥鱼吃白饭",
+    "tags": ["吃白饭"],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_5C6548570B6A5278350B215AFD111C90_0_0/0",
+    "md5": "5C6548570B6A5278350B215AFD111C90",
+    "enabled": true
+  },
+  {
+    "id": "meme-007",
+    "name": "大肥鱼开心",
+    "tags": ["开心", "友好"],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_E61BE9A275DDE081742BD60CB82462B6_0_0/0",
+    "md5": "E61BE9A275DDE081742BD60CB82462B6",
+    "enabled": true
+  },
+  {
+    "id": "meme-008",
+    "name": "大肥鱼惊喜",
+    "tags": ["惊喜"],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_3E09F7A97283602858C031DDD3AE8AD8_0_0/0",
+    "md5": "3E09F7A97283602858C031DDD3AE8AD8",
+    "enabled": true
+  },
+  {
+    "id": "meme-009",
+    "name": "大肥鱼喜欢",
+    "tags": ["喜欢", "同意"],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_98D70284F3BF45F28509D417362A32A7_0_0/0",
+    "md5": "98D70284F3BF45F28509D417362A32A7",
+    "enabled": true
+  },
+  {
+    "id": "meme-010",
+    "name": "大肥鱼装酷",
+    "tags": ["装酷"],
+    "url": "https://p.qpic.cn/qq_expression/3763604733/3763604733_0_0_0_1810B2176E6C3B5D4D21BA177611206B_0_0/0",
+    "md5": "1810B2176E6C3B5D4D21BA177611206B",
+    "enabled": true
+  }
+]

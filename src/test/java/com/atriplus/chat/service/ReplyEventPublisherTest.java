@@ -17,7 +17,7 @@ class ReplyEventPublisherTest {
         RabbitTemplate template = mock(RabbitTemplate.class);
         ObjectMapper mapper = new ObjectMapper();
         ReplyEventPublisher publisher = new ReplyEventPublisher(template, mapper);
-        publisher.publish("qq-default", new AgentChatResponse(true, "你好，世界"));
+        publisher.publish("qq-default", new AgentChatResponse(true, "你好，世界", "开心"));
         ArgumentCaptor<Message> message = ArgumentCaptor.forClass(Message.class);
         verify(template).send(eq(RabbitMqConfig.REPLY_EXCHANGE), eq(RabbitMqConfig.REPLY_ROUTING_KEY), message.capture());
         var json = mapper.readTree(message.getValue().getBody());
@@ -25,6 +25,7 @@ class ReplyEventPublisherTest {
         assertEquals("qq-default", json.get("conversationId").asText());
         assertTrue(json.get("shouldReply").asBoolean());
         assertEquals("你好，世界", json.get("reply").asText());
+        assertFalse(json.has("meme"));
         assertEquals("application/json", message.getValue().getMessageProperties().getContentType());
         assertEquals(MessageDeliveryMode.PERSISTENT, message.getValue().getMessageProperties().getDeliveryMode());
     }
@@ -33,7 +34,7 @@ class ReplyEventPublisherTest {
     void preservesNoReplyDecision() throws Exception {
         RabbitTemplate template = mock(RabbitTemplate.class);
         ObjectMapper mapper = new ObjectMapper();
-        new ReplyEventPublisher(template, mapper).publish("qq-default", new AgentChatResponse(false, null));
+        new ReplyEventPublisher(template, mapper).publish("qq-default", new AgentChatResponse(false, null, null));
         ArgumentCaptor<Message> message = ArgumentCaptor.forClass(Message.class);
         verify(template).send(eq(RabbitMqConfig.REPLY_EXCHANGE), eq(RabbitMqConfig.REPLY_ROUTING_KEY), message.capture());
         var json = mapper.readTree(message.getValue().getBody());
@@ -47,6 +48,6 @@ class ReplyEventPublisherTest {
         doThrow(new IllegalStateException("broker unavailable"))
                 .when(template).send(anyString(), anyString(), any(Message.class));
         assertThrows(IllegalStateException.class, () -> new ReplyEventPublisher(template, new ObjectMapper())
-                .publish("qq-default", new AgentChatResponse(true, "你好")));
+                .publish("qq-default", new AgentChatResponse(true, "你好", null)));
     }
 }
