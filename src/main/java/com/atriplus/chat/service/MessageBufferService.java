@@ -194,8 +194,10 @@ public class MessageBufferService {
                     .filter(java.util.Objects::nonNull)
                     .findFirst()
                     .orElse(null);
-            // 主要流程：将 Agent 结果交给当前 profile 对应的回复出口。
-            replyGateway.send(conversationId, target, response);
+
+            // 将 AI 选择的 eventId 映射为当前批次中真实的 OneBot message_id。
+            Long replyToMessageId = resolveReplyToMessageId(messages, response.replyToEventId());
+            replyGateway.send(conversationId, target, response, replyToMessageId);
         } catch (Exception e) {
             log.error("调用代理聊天接口或发布回复失败，conversationId={}", conversationId, e);
         }
@@ -213,6 +215,54 @@ public class MessageBufferService {
 
         } catch (JsonProcessingException e) {
             throw new RuntimeException("BufferedMessage JSON 解析失败", e);
+        }
+    }
+
+    /**
+     * 验证 AI 选择的 eventId，并提取对应的 OneBot message_id。
+     */
+    private Long resolveReplyToMessageId(List<BufferedMessage> messages, String replyToEventId) {
+        if (replyToEventId == null || replyToEventId.isBlank()) {
+            return null;
+        }
+
+        return messages.stream()
+                .filter(message ->
+                        replyToEventId.equals(message.eventId())
+                )
+                .findFirst()
+                .map(BufferedMessage::eventId)
+                .map(this::extractOneBotMessageId)
+                .orElseGet(() -> {
+                    log.warn(
+                            "replyToEventId 不属于当前消息批次，已忽略: {}",
+                            replyToEventId
+                    );
+                    return null;
+                });
+    }
+
+    /**
+     * eventId 格式为 selfId:messageId，提取最后面的 messageId。
+     */
+    private Long extractOneBotMessageId(String eventId) {
+        int separatorIndex = eventId.lastIndexOf(':');
+
+        if (separatorIndex < 0 ||
+                separatorIndex == eventId.length() - 1) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(
+                    eventId.substring(separatorIndex + 1)
+            );
+        } catch (NumberFormatException exception) {
+            log.warn(
+                    "无法从 eventId 提取 OneBot message_id: {}",
+                    eventId
+            );
+            return null;
         }
     }
 

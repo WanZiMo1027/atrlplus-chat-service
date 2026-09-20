@@ -8,5 +8,5 @@ import com.atriplus.chat.dto.ChatTarget;
  */
 public interface ReplyGateway {
 
-    void send(String conversationId, ChatTarget target, AgentChatResponse response);
+    void send(String conversationId, ChatTarget target, AgentChatResponse response, Long replyToMessageId);
 }

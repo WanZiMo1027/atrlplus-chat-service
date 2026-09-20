@@ -5,6 +5,7 @@ import com.atriplus.chat.client.dto.OneBotActionResponse;
 import com.atriplus.chat.client.dto.SendGroupMessageRequest;
 import com.atriplus.chat.client.dto.SendImageMessageData;
 import com.atriplus.chat.client.dto.SendImageMessageSegment;
+import com.atriplus.chat.client.dto.SendMessageSegment;
 import com.atriplus.chat.client.dto.SendPrivateMessageRequest;
 import com.atriplus.chat.dto.ChatTarget;
 import com.atriplus.chat.dto.ChatType;
@@ -34,7 +35,7 @@ public class SnowLumaReplyGateway implements ReplyGateway {
      * @param response 包含回复内容的 AgentChatResponse。
      */
     @Override
-    public void send(String conversationId, ChatTarget target, AgentChatResponse response) {
+    public void send(String conversationId, ChatTarget target, AgentChatResponse response, Long replyToMessageId) {
         if (!response.shouldReply()) {
             return;
         }
@@ -56,9 +57,14 @@ public class SnowLumaReplyGateway implements ReplyGateway {
             throw new IllegalArgumentException("SnowLuma reply target is missing: " + conversationId);
         }
 
-        // 文字和表情分开发送，严格保证文字先于表情。
-        for (String reply : replies) {
-            sendMessage(target, reply);
+        // 主要流程：第一条文字携带 AI 选择的引用，后续文字作为独立消息发送。
+        for (int index = 0; index < replies.size(); index++) {
+            String reply = replies.get(index);
+            if (index == 0 && replyToMessageId != null) {
+                sendQuotedText(target, replyToMessageId, reply);
+            } else {
+                sendMessage(target, reply);
+            }
         }
 
         if (hasMeme) {
@@ -73,8 +79,20 @@ public class SnowLumaReplyGateway implements ReplyGateway {
             sendMessage(target, imageMessage);
         }
 
-        log.info("SnowLuma 发送回复消息: conversationId={}, targetType={}, targetId={}, text={}, meme={}",
-                conversationId, target.type(), target.targetId(), hasReply, hasMeme);
+        log.info("SnowLuma 发送回复消息: conversationId={}, targetType={}, targetId={}, textCount={}, quoted={}, meme={}",
+                conversationId, target.type(), target.targetId(), replies.size(), replyToMessageId != null, hasMeme);
+    }
+
+    /**
+     * 发送一条由 reply 段和 text 段组成的引用回复。
+     */
+    private void sendQuotedText(ChatTarget target, long replyToMessageId, String text) {
+        // 主要流程：reply 段必须位于 text 段之前，SnowLuma 才会显示引用气泡。
+        List<SendMessageSegment> message = List.of(
+                SendMessageSegment.reply(replyToMessageId),
+                SendMessageSegment.text(text)
+        );
+        sendMessage(target, message);
     }
 
     /**

@@ -24,10 +24,6 @@ public class ReplyEventPublisher implements ReplyGateway {
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
 
-    @Override
-    public void send(String conversationId, ChatTarget target, AgentChatResponse response) {
-        publish(conversationId, response);
-    }
 
     public void publish(String conversationId, AgentChatResponse response) {
 //        QQReplyEvent event = new QQReplyEvent(conversationId, response.shouldReply(), response.replies());
@@ -44,5 +40,10 @@ public class ReplyEventPublisher implements ReplyGateway {
 //        } catch (JsonProcessingException e) {
 //            throw new IllegalStateException("Reply event JSON serialization failed", e);
 //        }
+    }
+
+    @Override
+    public void send(String conversationId, ChatTarget target, AgentChatResponse response, Long replyToMessageId) {
+
     }
 }
