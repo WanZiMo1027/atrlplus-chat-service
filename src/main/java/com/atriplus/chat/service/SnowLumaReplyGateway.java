@@ -38,39 +38,42 @@ public class SnowLumaReplyGateway implements ReplyGateway {
         if (!response.shouldReply()) {
             return;
         }
-
-        boolean hasReply = response.reply() != null && !response.reply().isBlank();
+        // 防止异常响应产生空消息或发送过多消息。
+        List<String> replies = response.replies() == null
+                ? List.of()
+                : response.replies().stream()
+                .filter(reply -> reply != null && !reply.isBlank())
+                .map(String::strip)
+                .limit(3)
+                .toList();
+        boolean hasReply = !replies.isEmpty();
         boolean hasMeme = response.meme() != null && !response.meme().isBlank();
         if (!hasReply && !hasMeme) {
             return;
         }
+        // 校验回复目标是否为空。
         if (target == null) {
             throw new IllegalArgumentException("SnowLuma reply target is missing: " + conversationId);
         }
 
-        // 主要流程：文字和表情分开发送，严格保证文字先于表情。
-        if (hasReply) {
-            sendMessage(target, response.reply());
+        // 文字和表情分开发送，严格保证文字先于表情。
+        for (String reply : replies) {
+            sendMessage(target, reply);
         }
 
         if (hasMeme) {
             Meme meme = memeService.findByTag(response.meme()).orElse(null);
             if (meme == null) {
-                log.warn("Meme tag not found or disabled: conversationId={}, tag={}",
-                        conversationId, response.meme());
+                log.warn("未找到或禁用表情标签: conversationId={}, tag={}", conversationId, response.meme());
                 return;
             }
-
             List<SendImageMessageSegment> imageMessage = List.of(
-                    new SendImageMessageSegment(
-                            "image",
-                            new SendImageMessageData(meme.url(), 1, "[动画表情]")
-                    )
+                    new SendImageMessageSegment("image", new SendImageMessageData(meme.url(), 1, "[动画表情]"))
             );
             sendMessage(target, imageMessage);
         }
 
-        log.info("SnowLuma reply sent: conversationId={}, targetType={}, targetId={}, text={}, meme={}",
+        log.info("SnowLuma 发送回复消息: conversationId={}, targetType={}, targetId={}, text={}, meme={}",
                 conversationId, target.type(), target.targetId(), hasReply, hasMeme);
     }
 

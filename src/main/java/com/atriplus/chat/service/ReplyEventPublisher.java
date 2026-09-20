@@ -30,19 +30,19 @@ public class ReplyEventPublisher implements ReplyGateway {
     }
 
     public void publish(String conversationId, AgentChatResponse response) {
-        QQReplyEvent event = new QQReplyEvent(conversationId, response.shouldReply(), response.reply());
-        try {
-            // 显式序列化 UTF-8 JSON，避免影响现有 RabbitTemplate 的转换器设置。
-            MessageProperties properties = new MessageProperties();
-            properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
-            properties.setContentEncoding("UTF-8");
-            properties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
-            Message message = new Message(objectMapper.writeValueAsBytes(event), properties);
-            rabbitTemplate.send(RabbitMqConfig.REPLY_EXCHANGE, RabbitMqConfig.REPLY_ROUTING_KEY, message);
-            log.info("REPLY EVENT PUBLISHED: conversationId={}, shouldReply={}",
-                    conversationId, response.shouldReply());
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Reply event JSON serialization failed", e);
-        }
+//        QQReplyEvent event = new QQReplyEvent(conversationId, response.shouldReply(), response.replies());
+//        try {
+//            // 显式序列化 UTF-8 JSON，避免影响现有 RabbitTemplate 的转换器设置。
+//            MessageProperties properties = new MessageProperties();
+//            properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
+//            properties.setContentEncoding("UTF-8");
+//            properties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+//            Message message = new Message(objectMapper.writeValueAsBytes(event), properties);
+//            rabbitTemplate.send(RabbitMqConfig.REPLY_EXCHANGE, RabbitMqConfig.REPLY_ROUTING_KEY, message);
+//            log.info("REPLY EVENT PUBLISHED: conversationId={}, shouldReply={}",
+//                    conversationId, response.shouldReply());
+//        } catch (JsonProcessingException e) {
+//            throw new IllegalStateException("Reply event JSON serialization failed", e);
+//        }
     }
 }

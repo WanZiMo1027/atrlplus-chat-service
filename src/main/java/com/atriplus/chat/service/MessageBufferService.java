@@ -188,7 +188,7 @@ public class MessageBufferService {
 
         try {
             AgentChatResponse response = agentClient.chat(request);
-            log.info("shouldReply:{}, reply:{}", response.shouldReply(), response.reply());
+            log.info("shouldReply:{}, reply:{}", response.shouldReply(), response.replies());
             ChatTarget target = messages.stream()
                     .map(BufferedMessage::target)
                     .filter(java.util.Objects::nonNull)
