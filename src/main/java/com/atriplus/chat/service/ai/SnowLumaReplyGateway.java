@@ -1,4 +1,4 @@
-package com.atriplus.chat.service;
+package com.atriplus.chat.service.ai;
 
 import com.atriplus.chat.client.dto.AgentChatResponse;
 import com.atriplus.chat.client.dto.OneBotActionResponse;

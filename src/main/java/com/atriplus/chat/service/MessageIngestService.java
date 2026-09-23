@@ -3,6 +3,7 @@ package com.atriplus.chat.service;
 import com.atriplus.chat.dto.BufferedMessage;
 import com.atriplus.chat.dto.IncomingChatMessage;
 import com.atriplus.chat.event.MessageDetectedEvent;
+import com.atriplus.chat.service.ai.MessageBufferService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +56,7 @@ public class MessageIngestService {
             conversationId = "unknown";
         }
 
-        ingest(new IncomingChatMessage(event.eventId(), conversationId, senderName, text, null));
+        ingest(new IncomingChatMessage(event.eventId(), conversationId, senderName, text, null,null));
 
         log.info("消息已进入缓冲区 eventId={}, senderName={}, text={}", event.eventId(), senderName, text);
     }
@@ -69,7 +70,8 @@ public class MessageIngestService {
                 event.eventId(),
                 event.senderName(),
                 event.text(),
-                event.target()
+                event.target(),
+                event.snapshot()
         );
         messageBufferService.addMessage(event.conversationId(), message);
     }

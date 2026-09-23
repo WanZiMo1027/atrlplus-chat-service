@@ -1,4 +1,4 @@
-package com.atriplus.chat.service;
+package com.atriplus.chat.service.ai;
 
 import com.atriplus.chat.dto.Meme;
 import com.fasterxml.jackson.databind.ObjectMapper;

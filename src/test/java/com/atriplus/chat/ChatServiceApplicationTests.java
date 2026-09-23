@@ -1,7 +1,7 @@
 package com.atriplus.chat;
 
 import com.atriplus.chat.consumer.MessageEventConsumer;
-import com.atriplus.chat.service.ReplyGateway;
+import com.atriplus.chat.service.ai.ReplyGateway;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;

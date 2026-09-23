@@ -1,4 +1,4 @@
-package com.atriplus.chat.service;
+package com.atriplus.chat.service.ai;
 
 import com.atriplus.chat.client.AgentClient;
 import com.atriplus.chat.client.dto.AgentChatRequest;
@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -53,6 +54,8 @@ public class MessageBufferService {
     private final AgentClient agentClient;
 
     private final ReplyGateway replyGateway;
+
+    private final ObjectProvider<OneBotMessageDescriptionService> messageDescriber;
 
     private final TaskExecutor messageFlushExecutor;
 
@@ -176,17 +179,19 @@ public class MessageBufferService {
 
         log.info("刷新消息，对话ID：{}，消息数量：{}", conversationId, messages.size());
 
-        AgentChatRequest request = new AgentChatRequest(
-                conversationId,
-                messages.stream()
-                        .map(message -> new ChatMessageItem(
-                                message.eventId(),
-                                message.senderName(),
-                                message.text()))
-                        .toList()
-        );
-
         try {
+            // 主要流程：在后台批量刷新时查询消息详情，避免阻塞 SnowLuma webhook。
+            AgentChatRequest request = new AgentChatRequest(
+                    conversationId,
+                    messages.stream()
+                            .map(message -> new ChatMessageItem(
+                                    message.eventId(),
+                                    message.senderName(),
+                                    message.snapshot() == null
+                                            ? message.text()
+                                            : messageDescriber.getObject().describeMessage(message)))
+                            .toList()
+            );
             AgentChatResponse response = agentClient.chat(request);
             log.info("shouldReply:{}, reply:{}", response.shouldReply(), response.replies());
             ChatTarget target = messages.stream()

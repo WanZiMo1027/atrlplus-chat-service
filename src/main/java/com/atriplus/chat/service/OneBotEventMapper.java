@@ -1,5 +1,6 @@
 package com.atriplus.chat.service;
 
+import com.atriplus.chat.client.dto.OneBotMessageSnapshot;
 import com.atriplus.chat.dto.ChatTarget;
 import com.atriplus.chat.dto.ChatType;
 import com.atriplus.chat.dto.IncomingChatMessage;
@@ -34,14 +35,25 @@ public class OneBotEventMapper {
         if (chatType == null) {
             return Optional.empty();
         }
-
         Long targetId = chatType == ChatType.GROUP ? event.groupId() : event.userId();
         if (targetId == null) {
             return Optional.empty();
         }
 
-        String text = extractText(event.message(), event.rawMessage());
-        if (text.isBlank()) {
+        List<OneBotMessageSegment> segments = event.message() == null ? List.of() : event.message();
+        String text = extractText(segments, event.rawMessage());
+
+        // 检查是否有非文本消息段
+        boolean hasNonTextSegment = false;
+        for (OneBotMessageSegment segment : segments) {
+            if (segment != null && segment.type() != null && !"text".equals(segment.type())) {
+                hasNonTextSegment = true;
+                break;
+            }
+        }
+
+        // @、引用、图片等消息段即使没有文字，也要进入缓冲。
+        if (text.isBlank() && !hasNonTextSegment) {
             return Optional.empty();
         }
 
@@ -52,14 +64,21 @@ public class OneBotEventMapper {
         );
         String eventId = event.selfId() + ":" + event.messageId().asText();
         ChatTarget target = new ChatTarget(event.selfId(), chatType, targetId);
-
-        // 主要流程：使用稳定 QQ ID 构造会话键，避免群名重复导致上下文串线。
+        // 保存事件中已有的消息段，供后台 get_msg 失败时降级使用。
+        OneBotMessageSnapshot snapshot = new OneBotMessageSnapshot(
+                event.messageId().asText(),
+                event.userId(),
+                segments,
+                event.rawMessage()
+        );
+        // 使用稳定 QQ ID 构造会话键，避免群名重复导致上下文串线。
         return Optional.of(new IncomingChatMessage(
                 eventId,
                 conversationId,
                 resolveSenderName(event),
                 text,
-                target
+                target,
+                snapshot
         ));
     }
 
@@ -73,18 +92,23 @@ public class OneBotEventMapper {
         return null;
     }
 
+    /**
+     * 从消息段中提取文本内容。
+     * @param segments 消息段列表
+     * @param rawMessage 原始消息内容
+     * @return 提取到的文本内容
+     */
     private String extractText(List<OneBotMessageSegment> segments, String rawMessage) {
-        if (segments != null) {
+        if (!segments.isEmpty()) {
             StringBuilder text = new StringBuilder();
             for (OneBotMessageSegment segment : segments) {
                 if (segment != null && "text".equals(segment.type()) && segment.data() != null) {
                     text.append(segment.data().path("text").asText(""));
                 }
             }
-            if (!text.isEmpty()) {
-                return text.toString().trim();
-            }
+            return text.toString().trim();
         }
+
         return rawMessage == null ? "" : rawMessage.trim();
     }
 

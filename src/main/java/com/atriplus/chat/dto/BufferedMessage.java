@@ -1,5 +1,7 @@
 package com.atriplus.chat.dto;
 
+import com.atriplus.chat.client.dto.OneBotMessageSnapshot;
+
 /**
  * 缓冲区消息
  * @param eventId 事件ID
@@ -7,5 +9,5 @@ package com.atriplus.chat.dto;
  * @param text 消息文本
  * @param target 回复目标；旧 RabbitMQ 消息没有该字段时允许为空
  */
-public record BufferedMessage(String eventId, String senderName, String text, ChatTarget target) {
+public record BufferedMessage(String eventId, String senderName, String text, ChatTarget target, OneBotMessageSnapshot snapshot) {
 }

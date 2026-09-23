@@ -78,4 +78,36 @@ class OneBotEventMapperTest {
 
         assertTrue(mapper.map(event).isEmpty());
     }
+
+    @Test
+    void keepsAtOnlyMessageAndNegativeMessageId() throws Exception {
+        OneBotEvent event = new OneBotEvent(
+                "message", "group", 10001L, objectMapper.readTree("-1037619435"),
+                2861880703L, 1104399740L,
+                List.of(
+                        new OneBotMessageSegment("at", objectMapper.readTree("{\"qq\":\"3763604733\"}")),
+                        new OneBotMessageSegment("text", objectMapper.readTree("{\"text\":\" \"}"))
+                ),
+                "[CQ:at,qq=3763604733] ",
+                new OneBotSender(2861880703L, "万矣筱晓", "")
+        );
+
+        var message = mapper.map(event).orElseThrow();
+        assertEquals("10001:-1037619435", message.eventId());
+        assertEquals("", message.text());
+        assertEquals("-1037619435", message.snapshot().messageId());
+        assertEquals("at", message.snapshot().segments().getFirst().type());
+        assertEquals("3763604733", message.snapshot().segments().getFirst().data().path("qq").asText());
+    }
+
+    @Test
+    void ignoresWhitespaceOnlyTextMessage() throws Exception {
+        OneBotEvent event = new OneBotEvent(
+                "message", "group", 10001L, objectMapper.readTree("12"),
+                20002L, 30003L,
+                List.of(new OneBotMessageSegment("text", objectMapper.readTree("{\"text\":\" \"}"))),
+                " ", new OneBotSender(20002L, "昵称", "")
+        );
+        assertTrue(mapper.map(event).isEmpty());
+    }
 }
