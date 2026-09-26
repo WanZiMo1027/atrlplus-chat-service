@@ -19,3 +19,9 @@ spring:
     driver-class-name: org.postgresql.Driver
   config:
     import: optional:classpath:application-local.yml
+
+media:
+  vision:
+    base-url: ${MEDIA_VISION_BASE_URL:https://api.deepseek.com}
+    api-key: ${MEDIA_VISION_API_KEY:${DEEPSEEK_API_KEY:}}
+    model: ${MEDIA_VISION_MODEL:deepseek-flash}

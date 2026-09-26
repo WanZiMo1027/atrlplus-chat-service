@@ -6,6 +6,7 @@ import com.atriplus.chat.client.dto.AgentChatResponse;
 import com.atriplus.chat.dto.BufferedMessage;
 import com.atriplus.chat.dto.ChatTarget;
 import com.atriplus.chat.client.dto.ChatMessageItem;
+import com.atriplus.chat.client.dto.DescribedMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -184,12 +185,15 @@ public class MessageBufferService {
             AgentChatRequest request = new AgentChatRequest(
                     conversationId,
                     messages.stream()
-                            .map(message -> new ChatMessageItem(
-                                    message.eventId(),
-                                    message.senderName(),
-                                    message.snapshot() == null
-                                            ? message.text()
-                                            : messageDescriber.getObject().describeMessage(message)))
+                            .map(message -> {
+                                // 主要流程：SnowLuma 消息同时携带描述和首次表情原图；旧链路仍只传文字。
+                                DescribedMessage described = message.snapshot() == null
+                                        ? new DescribedMessage(message.text(), List.of())
+                                        : messageDescriber.getObject().describeMessage(message);
+                                return new ChatMessageItem(
+                                        message.eventId(), message.senderName(),
+                                        described.text(), described.images());
+                            })
                             .toList()
             );
             AgentChatResponse response = agentClient.chat(request);

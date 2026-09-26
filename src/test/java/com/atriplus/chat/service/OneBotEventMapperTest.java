@@ -28,14 +28,14 @@ class OneBotEventMapperTest {
                 30003L,
                 List.of(new OneBotMessageSegment("text", objectMapper.readTree("{\"text\":\"你好\"}"))),
                 "你好",
-                new OneBotSender(20002L, "昵称", "群名片")
+                new OneBotSender(20002L, "昵称")
         );
 
         var message = mapper.map(event).orElseThrow();
 
         assertEquals("10001:123", message.eventId());
         assertEquals("qq:10001:group:30003", message.conversationId());
-        assertEquals("群名片", message.senderName());
+        assertEquals("昵称", message.senderName());
         assertEquals("你好", message.text());
         assertEquals(ChatType.GROUP, message.target().type());
         assertEquals(30003L, message.target().targetId());
@@ -52,7 +52,7 @@ class OneBotEventMapperTest {
                 null,
                 List.of(),
                 "私聊内容",
-                new OneBotSender(20002L, "昵称", "")
+                new OneBotSender(20002L, "昵称")
         );
 
         var message = mapper.map(event).orElseThrow();
@@ -89,7 +89,7 @@ class OneBotEventMapperTest {
                         new OneBotMessageSegment("text", objectMapper.readTree("{\"text\":\" \"}"))
                 ),
                 "[CQ:at,qq=3763604733] ",
-                new OneBotSender(2861880703L, "万矣筱晓", "")
+                new OneBotSender(2861880703L, "万矣筱晓")
         );
 
         var message = mapper.map(event).orElseThrow();
@@ -106,7 +106,7 @@ class OneBotEventMapperTest {
                 "message", "group", 10001L, objectMapper.readTree("12"),
                 20002L, 30003L,
                 List.of(new OneBotMessageSegment("text", objectMapper.readTree("{\"text\":\" \"}"))),
-                " ", new OneBotSender(20002L, "昵称", "")
+                " ", new OneBotSender(20002L, "昵称")
         );
         assertTrue(mapper.map(event).isEmpty());
     }

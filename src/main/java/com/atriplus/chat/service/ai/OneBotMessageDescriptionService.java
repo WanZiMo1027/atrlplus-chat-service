@@ -1,8 +1,11 @@
 package com.atriplus.chat.service.ai;
 
 
+import com.atriplus.chat.client.dto.ChatImageItem;
+import com.atriplus.chat.client.dto.DescribedMessage;
 import com.atriplus.chat.client.dto.OneBotMessageSnapshot;
 import com.atriplus.chat.dto.BufferedMessage;
+import com.atriplus.chat.dto.MediaOutcome;
 import com.atriplus.chat.dto.ChatTarget;
 import com.atriplus.chat.dto.ChatType;
 import com.atriplus.chat.event.onebot.OneBotMessageSegment;
@@ -15,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,16 +40,17 @@ public class OneBotMessageDescriptionService {
     private final SnowLumaMessageLookupService snowLumaMessageLookupService;
     private final ObjectMapper objectMapper;
     private final NickNameAndQQNumberService nickNameAndQQNumberService;
+    private final MediaDescriptionService mediaDescriptionService;
 
     /**
      * 描述消息
      * @param message 消息缓冲区
      * @return 消息描述
      */
-    public String describeMessage(BufferedMessage message) {
+    public DescribedMessage describeMessage(BufferedMessage message) {
         OneBotMessageSnapshot snapshot = message.snapshot();
         if(snapshot == null){
-            return message.text();
+            return new DescribedMessage(message.text(), List.of());
         }
 
         Long groupId = getGroupId(message.target());
@@ -65,6 +70,7 @@ public class OneBotMessageDescriptionService {
 
         // 每条消息优先补查 get_msg，失败时使用 webhook 已保存的消息段。
         StringBuilder description = new StringBuilder();
+        List<ChatImageItem> images = new ArrayList<>();
         description.append("消息ID：").append(snapshot.messageId()).append('\n');
         description.append("发送者：").append(jsonString(message.senderName()))
                    .append("（QQ ").append(snapshot.senderId()).append("）\n");
@@ -79,10 +85,13 @@ public class OneBotMessageDescriptionService {
         if (segments.isEmpty() && snapshot.rawMessage() != null && !snapshot.rawMessage().isBlank()) {
             description.append("原始内容：").append(jsonString(snapshot.rawMessage())).append('\n');
         } else {
-            appendSegments(description, segments, true, groupId);
+            appendSegments(description, segments, true, groupId,images,true);
         }
 
-        return limit(description.toString(), MAX_DESCRIPTION_LENGTH);
+        return new DescribedMessage(
+                limit(description.toString(), MAX_DESCRIPTION_LENGTH),
+                List.copyOf(images)
+        );
     }
 
     /**
@@ -119,7 +128,9 @@ public class OneBotMessageDescriptionService {
             StringBuilder out,
             List<OneBotMessageSegment> segments,
             boolean expandReply,
-            Long groupId
+            Long groupId,
+            List<ChatImageItem> images,
+            boolean collectImages
     ) {
 
         boolean hasBody = false;
@@ -160,8 +171,10 @@ public class OneBotMessageDescriptionService {
                     // 主要流程：引用只补查一层；描述被引用消息时不再查询其引用。
                     appendQuotedMessage(out, replyId, groupId);
                 }
-            }
-            else if (List.of("image", "record", "video", "file").contains(type)) {
+            } else if ("image".equals(type)) {
+                appendImage(out, data, images, collectImages);
+                hasBody = true;
+            } else if (List.of("record", "video", "file").contains(type)) {
                 out.append("媒体类型 ").append(type);
                 appendMediaMetadata(out, data);
             }
@@ -205,7 +218,30 @@ public class OneBotMessageDescriptionService {
             out.append("被引用原始内容：")
                     .append(jsonString(detail.path("raw_message").asText("")));
         } else {
-            appendSegments(out, quotedSegments, false, groupId);
+            // 引用中的图片只读取文字描述，不能作为本轮新图片再次发给 Agent。
+            appendSegments(out, quotedSegments, false, groupId, List.of(), false);
+        }
+    }
+
+    /**
+     * 追加图片描述
+     * @param out 消息描述
+     * @param data 图片数据
+     * @param images 图片项列表
+     * @param collectImages 是否收集图片项
+     */
+    private void appendImage(StringBuilder out, JsonNode data, List<ChatImageItem> images, boolean collectImages) {
+        String file = field(data, "file");
+        String summary = field(data, "summary");
+        String url = field(data, "url");
+
+        // 主要流程：按 summary 分类；查库、识别和异步入库由媒体服务负责。
+        MediaOutcome outcome = mediaDescriptionService.resolve(file, summary, url, collectImages);
+
+        out.append(outcome.text());
+
+        if (collectImages && outcome.image() != null) {
+            images.add(outcome.image());
         }
     }
 
