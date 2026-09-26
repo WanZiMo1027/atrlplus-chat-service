@@ -114,9 +114,6 @@ public class OneBotEventMapper {
 
     private String resolveSenderName(OneBotEvent event) {
         if (event.sender() != null) {
-            if (event.sender().card() != null && !event.sender().card().isBlank()) {
-                return event.sender().card();
-            }
             if (event.sender().nickname() != null && !event.sender().nickname().isBlank()) {
                 return event.sender().nickname();
             }

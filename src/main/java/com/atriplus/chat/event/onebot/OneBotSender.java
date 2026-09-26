@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record OneBotSender(
         @JsonProperty("user_id") Long userId,
-        String nickname,
-        String card
+        String nickname
 ) {
 }

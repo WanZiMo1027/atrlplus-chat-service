@@ -3,6 +3,8 @@ package com.atriplus.chat.service.ai;
 
 import com.atriplus.chat.client.dto.OneBotMessageSnapshot;
 import com.atriplus.chat.dto.BufferedMessage;
+import com.atriplus.chat.dto.ChatTarget;
+import com.atriplus.chat.dto.ChatType;
 import com.atriplus.chat.event.onebot.OneBotMessageSegment;
 import com.atriplus.chat.service.NickNameAndQQNumberService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -46,6 +48,16 @@ public class OneBotMessageDescriptionService {
             return message.text();
         }
 
+        Long groupId = getGroupId(message.target());
+        if (groupId != null) {
+            // 主要流程：利用事件中可靠的发送者信息持续补全群内 QQ 与昵称映射。
+            nickNameAndQQNumberService.saveNickName(
+                    groupId,
+                    String.valueOf(snapshot.senderId()),
+                    message.senderName()
+            );
+        }
+
         JsonNode detail = snowLumaMessageLookupService.getMessage(snapshot.messageId()).orElse(null);
         List<OneBotMessageSegment> segments = readSegments(
                 detail, snapshot.segments()
@@ -67,7 +79,7 @@ public class OneBotMessageDescriptionService {
         if (segments.isEmpty() && snapshot.rawMessage() != null && !snapshot.rawMessage().isBlank()) {
             description.append("原始内容：").append(jsonString(snapshot.rawMessage())).append('\n');
         } else {
-            appendSegments(description, segments, true);
+            appendSegments(description, segments, true, groupId);
         }
 
         return limit(description.toString(), MAX_DESCRIPTION_LENGTH);
@@ -103,7 +115,12 @@ public class OneBotMessageDescriptionService {
      * @param segments 消息段列表
      * @param expandReply 是否展开引用消息
      */
-    private void appendSegments(StringBuilder out, List<OneBotMessageSegment> segments, boolean expandReply) {
+    private void appendSegments(
+            StringBuilder out,
+            List<OneBotMessageSegment> segments,
+            boolean expandReply,
+            Long groupId
+    ) {
 
         boolean hasBody = false;
         boolean hasReply = false;
@@ -129,12 +146,11 @@ public class OneBotMessageDescriptionService {
                 }
             } else if ("at".equals(type)) {
                 String qqNumber = field(data, "qq");
-                // 主要流程：业务昵称存在时优先展示昵称，否则保留原始 QQ 号作为降级结果。
-                nickNameAndQQNumberService.getNickName(qqNumber).ifPresentOrElse(
-                        nickName -> out.append('@').append(nickName)
-                                .append("（QQ ").append(qqNumber).append("）"),
-                        () -> out.append("@QQ ").append(qqNumber)
-                );
+                // @ 只读取已积累的业务映射，不额外请求群成员资料。
+                Optional<String> nickName = groupId == null
+                        ? Optional.empty()
+                        : nickNameAndQQNumberService.getNickName(groupId, qqNumber);
+                out.append(nickName.orElse("QQ")).append(':').append(qqNumber);
             } else if ("reply".equals(type)) {
                 hasReply = true;
                 String replyId = field(data, "id");
@@ -142,7 +158,7 @@ public class OneBotMessageDescriptionService {
                 if (expandReply && !expandedReply && !replyId.isBlank()) {
                     expandedReply = true;
                     // 主要流程：引用只补查一层；描述被引用消息时不再查询其引用。
-                    appendQuotedMessage(out, replyId);
+                    appendQuotedMessage(out, replyId, groupId);
                 }
             }
             else if (List.of("image", "record", "video", "file").contains(type)) {
@@ -162,7 +178,7 @@ public class OneBotMessageDescriptionService {
         if (!hasBody) out.append("正文：无\n");
     }
 
-    private void appendQuotedMessage(StringBuilder out, String replyId) {
+    private void appendQuotedMessage(StringBuilder out, String replyId, Long groupId) {
         Optional<JsonNode> quoted = snowLumaMessageLookupService.getMessage(replyId);
         if (quoted.isEmpty()) {
             out.append("；引用详情不可用");
@@ -171,9 +187,16 @@ public class OneBotMessageDescriptionService {
 
         JsonNode detail = quoted.get();
         JsonNode sender = detail.path("sender");
-        String senderName = field(sender, "card");
+        String senderName = field(sender, "nickname");
         if (senderName.isBlank()) {
-            senderName = field(sender, "nickname");
+            senderName = detail.path("user_id").asText("");
+        }
+        if (groupId != null) {
+            nickNameAndQQNumberService.saveNickName(
+                    groupId,
+                    detail.path("user_id").asText(""),
+                    senderName
+            );
         }
         out.append("\n被引用消息发送者：").append(jsonString(senderName))
                 .append("（QQ ").append(detail.path("user_id").asText("未知")).append("）\n");
@@ -182,8 +205,14 @@ public class OneBotMessageDescriptionService {
             out.append("被引用原始内容：")
                     .append(jsonString(detail.path("raw_message").asText("")));
         } else {
-            appendSegments(out, quotedSegments, false);
+            appendSegments(out, quotedSegments, false, groupId);
         }
+    }
+
+    private Long getGroupId(ChatTarget target) {
+        return target != null && target.type() == ChatType.GROUP
+                ? target.targetId()
+                : null;
     }
 
     private void appendMediaMetadata(StringBuilder out, JsonNode data) {
