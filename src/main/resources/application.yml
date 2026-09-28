@@ -20,6 +20,9 @@ spring:
   config:
     import: optional:classpath:application-local.yml
 
+mybatis:
+  mapper-locations: classpath:/mapper/*.xml
+
 media:
   vision:
     base-url: ${MEDIA_VISION_BASE_URL:https://api.deepseek.com}

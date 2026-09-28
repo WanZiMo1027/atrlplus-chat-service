@@ -40,6 +40,12 @@ export interface PromptPage {
   remoteAvailable: boolean
 }
 
+export interface GroupReplyConfig {
+  groupId: number
+  groupName: string
+  enabled: boolean
+}
+
 let csrfToken = ''
 
 async function adminFetch(url: string, init?: RequestInit): Promise<Response> {
@@ -65,10 +71,10 @@ export async function loadCsrf(): Promise<string> {
   return csrfToken
 }
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function requestAdmin<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = init.method?.toUpperCase() ?? 'GET'
   if (method !== 'GET' && !csrfToken) await loadCsrf()
-  const response = await adminFetch(`/api/admin/tencentdb/l1${path}`, {
+  const response = await adminFetch(`/api/admin${path}`, {
     ...init,
     headers: {
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
@@ -89,4 +95,8 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
       : body?.message || unavailableMessage(response))
   }
   return body as T
+}
+
+export function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return requestAdmin<T>(`/tencentdb/l1${path}`, init)
 }

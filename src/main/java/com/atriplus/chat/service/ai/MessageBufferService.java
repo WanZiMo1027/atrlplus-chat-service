@@ -5,8 +5,11 @@ import com.atriplus.chat.client.dto.AgentChatRequest;
 import com.atriplus.chat.client.dto.AgentChatResponse;
 import com.atriplus.chat.dto.BufferedMessage;
 import com.atriplus.chat.dto.ChatTarget;
+import com.atriplus.chat.dto.ChatType;
 import com.atriplus.chat.client.dto.ChatMessageItem;
 import com.atriplus.chat.client.dto.DescribedMessage;
+import com.atriplus.chat.service.GroupReplyConfigService;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 
@@ -57,6 +61,10 @@ public class MessageBufferService {
     private final ReplyGateway replyGateway;
 
     private final ObjectProvider<OneBotMessageDescriptionService> messageDescriber;
+
+    private final ObjectProvider<SnowLumaMessageLookupService> messageLookup;
+
+    private final GroupReplyConfigService groupReplyConfigService;
 
     private final TaskExecutor messageFlushExecutor;
 
@@ -181,6 +189,26 @@ public class MessageBufferService {
         log.info("刷新消息，对话ID：{}，消息数量：{}", conversationId, messages.size());
 
         try {
+            BufferedMessage firstGroupMessage = messages.stream()
+                    .filter(message -> message.target() != null
+                            && message.target().type() == ChatType.GROUP
+                            && message.snapshot() != null)
+                    .findFirst().orElse(null);
+            Long groupId = firstGroupMessage == null ? null : firstGroupMessage.target().targetId();
+            Optional<JsonNode> firstDetail = Optional.empty();
+            if (firstGroupMessage != null) {
+                // 主要流程：先取群详情并检查开关；关闭的群不生成描述，也不调用 Agent。
+                firstDetail = messageLookup.getObject().getMessage(firstGroupMessage.snapshot().messageId());
+                String groupName = firstDetail
+                        .filter(detail -> "group".equals(detail.path("message_type").asText())
+                                && detail.path("group_id").asLong(-1) == groupId)
+                        .map(detail -> detail.path("group_name").asText(null))
+                        .orElse(null);
+                if (!groupReplyConfigService.registerAndIsEnabled(groupId, groupName)) {
+                    return;
+                }
+            }
+            Optional<JsonNode> prefetchedDetail = firstDetail;
             // 主要流程：在后台批量刷新时查询消息详情，避免阻塞 SnowLuma webhook。
             AgentChatRequest request = new AgentChatRequest(
                     conversationId,
@@ -189,7 +217,9 @@ public class MessageBufferService {
                                 // 主要流程：SnowLuma 消息同时携带描述和首次表情原图；旧链路仍只传文字。
                                 DescribedMessage described = message.snapshot() == null
                                         ? new DescribedMessage(message.text(), List.of())
-                                        : messageDescriber.getObject().describeMessage(message);
+                                        : message == firstGroupMessage
+                                                ? messageDescriber.getObject().describeMessage(message, prefetchedDetail)
+                                                : messageDescriber.getObject().describeMessage(message);
                                 return new ChatMessageItem(
                                         message.eventId(), message.senderName(),
                                         described.text(), described.images());
@@ -206,6 +236,9 @@ public class MessageBufferService {
 
             // 将 AI 选择的 eventId 映射为当前批次中真实的 OneBot message_id。
             Long replyToMessageId = resolveReplyToMessageId(messages, response.replyToEventId());
+            if (groupId != null && !groupReplyConfigService.isEnabled(groupId)) {
+                return;
+            }
             replyGateway.send(conversationId, target, response, replyToMessageId);
         } catch (Exception e) {
             log.error("调用代理聊天接口或发布回复失败，conversationId={}", conversationId, e);

@@ -1,10 +1,10 @@
 # TencentDB L1 控制面板
 
-控制面板由 chat-service 提供，入口为 `http://localhost:8080/admin/`。侧边栏的 TencentDB 菜单包含“记忆页”和“提示词页”。浏览器只访问 chat-service；TencentDB 凭据仍由 agent-service 持有。
+控制面板由 chat-service 提供，入口为 `http://localhost:8080/admin/`。侧边栏包含 TencentDB 的“记忆页”“提示词页”和 QQ 群“回复控制”。浏览器只访问 chat-service；TencentDB 凭据仍由 agent-service 持有。
 
 ## 启用
 
-两个服务必须使用相同的 `ADMIN_INTERNAL_TOKEN`。该值只放在环境变量或各自被忽略的 `application-local.yml`，不要提交或打印。首次启用前确认 chat-service 的 PostgreSQL 用户可以创建 `admin_l1_*` 表。
+两个服务必须使用相同的 `ADMIN_INTERNAL_TOKEN`。该值只放在环境变量或各自被忽略的 `application-local.yml`，不要提交或打印。首次启用前确认 chat-service 的 PostgreSQL 用户可以创建 `admin_l1_*` 表。部署群回复开关前，先执行 [`qq-group-reply-config.sql`](sql/qq-group-reply-config.sql)；群消息处理依赖该表，即使管理页面未启用也需要建表。
 
 | 服务 | 环境变量 | 说明 |
 | --- | --- | --- |
@@ -31,6 +31,7 @@
 - L1 提示词页将草稿和发布分开。首次保存草稿时记录远端 Prompt ID 与版本；发布前再次比较，版本变化返回冲突。历史版本可载入草稿后重新发布。
 - TencentDB 未绑定自定义 L1 Prompt 时返回 `builtin:l1` 和空正文，内置规则的实际正文无法从该接口读取。Agent 仓库的 `prompts/tencent-l1-qq-group.txt` 是单独的项目模板；可从面板“载入项目模板”放入编辑区，保存草稿不影响线上，发布后才会绑定为生效版本。
 - 原有 `/internal/memory/l1-prompt/init` 在已有自定义绑定时不再覆盖生效提示词；启用 Agent 管理接口时，该入口也要求内部令牌。
-- 当前 TencentDB MemoryCore 的 L1 查询响应不提供可靠的 `session_id`，因此本版不支持按 QQ 群筛选。人格、模型参数和群聊开关也尚未加入面板。
+- 当前 TencentDB MemoryCore 的 L1 查询响应不提供可靠的 `session_id`，因此记忆页不支持按 QQ 群筛选。人格和模型参数尚未加入面板。
+- 回复控制页列出已收到消息并记录的 QQ 群。新群默认允许回复；管理员关闭后，该群消息在后台刷新时跳过 Agent 调用。群名称和回复状态在 Redis 缓存 5 分钟，管理员切换开关会同步更新状态缓存。
 
 PostgreSQL 管理表为 `admin_l1_prompt_state`、`admin_l1_prompt_history` 和 `admin_l1_audit`，仅在启用面板时通过 `CREATE TABLE IF NOT EXISTS` 建立。发布失败保留草稿；远端发布成功而本地确认中断时，下一次读取会根据待确认记录与远端生效内容对账。

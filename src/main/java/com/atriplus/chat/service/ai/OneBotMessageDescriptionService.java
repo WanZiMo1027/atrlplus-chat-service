@@ -49,6 +49,14 @@ public class OneBotMessageDescriptionService {
      */
     public DescribedMessage describeMessage(BufferedMessage message) {
         OneBotMessageSnapshot snapshot = message.snapshot();
+        return describeMessage(message, snapshot == null
+                ? Optional.empty()
+                : snowLumaMessageLookupService.getMessage(snapshot.messageId()));
+    }
+
+    /** 使用刷新阶段已查询的详情，避免首条群消息重复请求 get_msg。 */
+    public DescribedMessage describeMessage(BufferedMessage message, Optional<JsonNode> messageDetail) {
+        OneBotMessageSnapshot snapshot = message.snapshot();
         if(snapshot == null){
             return new DescribedMessage(message.text(), List.of());
         }
@@ -63,7 +71,7 @@ public class OneBotMessageDescriptionService {
             );
         }
 
-        JsonNode detail = snowLumaMessageLookupService.getMessage(snapshot.messageId()).orElse(null);
+        JsonNode detail = messageDetail.orElse(null);
         List<OneBotMessageSegment> segments = readSegments(
                 detail, snapshot.segments()
         );

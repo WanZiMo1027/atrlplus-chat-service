@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 @ConditionalOnProperty(name = "admin.enabled", havingValue = "true")
 public class AdminPageController {
     @GetMapping({"/admin", "/admin/", "/admin/login",
-            "/admin/tencentdb/l1/memories", "/admin/tencentdb/l1/prompts"})
+            "/admin/tencentdb/l1/memories", "/admin/tencentdb/l1/prompts",
+            "/admin/group-reply-config"})
     public String page() { return "forward:/admin/index.html"; }
 }
