@@ -21,6 +21,7 @@
         <java.version>21</java.version>
         <spring-cloud.version>2025.0.3</spring-cloud.version>
         <spring-cloud-alibaba.version>2025.0.0.0</spring-cloud-alibaba.version>
+        <npm.executable>npm</npm.executable>
     </properties>
 
     <dependencyManagement>
@@ -54,6 +55,11 @@
         </dependency>
 
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
@@ -69,6 +75,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -126,9 +137,67 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <id>install-admin-web</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <workingDirectory>${project.basedir}/admin-web</workingDirectory>
+                            <executable>${npm.executable}</executable>
+                            <arguments>
+                                <argument>ci</argument>
+                                <argument>--cache</argument>
+                                <argument>${project.basedir}/admin-web/.npm-cache</argument>
+                                <argument>--registry</argument>
+                                <argument>https://registry.npmjs.org</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>build-admin-web</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <workingDirectory>${project.basedir}/admin-web</workingDirectory>
+                            <executable>${npm.executable}</executable>
+                            <arguments><argument>run</argument><argument>build</argument></arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-admin-web</id>
+                        <phase>prepare-package</phase>
+                        <goals><goal>copy-resources</goal></goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/static/admin</outputDirectory>
+                            <resources>
+                                <resource><directory>${project.basedir}/admin-web/dist</directory></resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>windows-npm</id>
+            <activation><os><family>Windows</family></os></activation>
+            <properties><npm.executable>npm.cmd</npm.executable></properties>
+        </profile>
+    </profiles>
 </project>

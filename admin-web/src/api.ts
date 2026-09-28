@@ -1,0 +1,92 @@
+export interface MemoryItem {
+  id: string
+  content: string
+  type: string
+  background?: string
+  version: number
+  created_at?: string
+  updated_at?: string
+  score?: number
+}
+
+export interface PromptView {
+  memoryPromptId: string
+  version: number
+  content: string
+  source: string
+}
+
+export interface Draft {
+  content: string
+  revision: number
+  basePromptId: string
+  baseVersion: number
+  saved: boolean
+}
+
+export interface PromptHistory {
+  id: number
+  content: string
+  remotePromptId: string
+  remoteVersion: number
+  status: string
+  requestedAt: string
+}
+
+export interface PromptPage {
+  active: PromptView | null
+  draft: Draft
+  history: PromptHistory[]
+  remoteAvailable: boolean
+}
+
+let csrfToken = ''
+
+async function adminFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, { credentials: 'same-origin', ...init })
+  } catch {
+    throw new Error('无法连接管理 API，请确认 chat-service 已启动')
+  }
+}
+
+function unavailableMessage(response: Response): string {
+  if (response.status === 403) return '管理功能未启用：请设置 ADMIN_ENABLED=true 并重启 chat-service'
+  if (import.meta.env.DEV && response.status >= 500) {
+    return 'Vite 无法连接管理 API，请确认 chat-service 已在 127.0.0.1:8080 启动'
+  }
+  return `请求失败 (${response.status})`
+}
+
+export async function loadCsrf(): Promise<string> {
+  const response = await adminFetch('/api/admin/csrf')
+  if (!response.ok) throw new Error(unavailableMessage(response))
+  csrfToken = (await response.json()).token
+  return csrfToken
+}
+
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = init.method?.toUpperCase() ?? 'GET'
+  if (method !== 'GET' && !csrfToken) await loadCsrf()
+  const response = await adminFetch(`/api/admin/tencentdb/l1${path}`, {
+    ...init,
+    headers: {
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(method !== 'GET' ? { 'X-XSRF-TOKEN': csrfToken } : {}),
+      ...(init.headers ?? {}),
+    },
+  })
+  if (response.redirected && response.url.includes('/admin/login')) {
+    window.location.href = '/admin/login'
+    throw new Error('登录已过期')
+  }
+  const body = await response.json().catch(() => null)
+  if (!response.ok) {
+    if (response.status === 403 && method !== 'GET') {
+      throw new Error('操作被拒绝，请刷新页面并重新登录后重试')
+    }
+    throw new Error(response.status === 403 ? unavailableMessage(response)
+      : body?.message || unavailableMessage(response))
+  }
+  return body as T
+}

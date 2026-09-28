@@ -25,3 +25,8 @@ media:
     base-url: ${MEDIA_VISION_BASE_URL:https://api.deepseek.com}
     api-key: ${MEDIA_VISION_API_KEY:${DEEPSEEK_API_KEY:}}
     model: ${MEDIA_VISION_MODEL:deepseek-flash}
+
+admin:
+  enabled: ${ADMIN_ENABLED:true}
+  password: ${ADMIN_PASSWORD:}
+  internal-token: ${ADMIN_INTERNAL_TOKEN:}
