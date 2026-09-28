@@ -4,9 +4,9 @@
 <mapper namespace="com.atriplus.chat.mapper.GroupReplyConfigMapper">
     <resultMap id="groupConfig" type="com.atriplus.chat.dto.GroupReplyConfig">
         <constructor>
-            <arg column="group_id" javaType="long"/>
+            <arg column="group_id" javaType="_long"/>
             <arg column="group_name" javaType="String"/>
-            <arg column="enabled" javaType="boolean"/>
+            <arg column="enabled" javaType="_boolean"/>
         </constructor>
     </resultMap>
 
