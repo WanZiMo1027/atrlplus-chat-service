@@ -1,4 +1,4 @@
-package com.atriplus.chat.controller;
+package com.atriplus.chat.controller.admin;
 
 import com.atriplus.chat.service.admin.L1MemoryAdminFacade;
 import com.atriplus.chat.service.admin.L1PromptAdminFacade;

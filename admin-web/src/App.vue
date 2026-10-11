@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChatDotRound, DataAnalysis, Document, Expand, Fold, Key, SwitchButton } from '@element-plus/icons-vue'
+import { ChatDotRound, DataAnalysis, Document, Expand, Fold, Key, Picture, SwitchButton } from '@element-plus/icons-vue'
 import { loadCsrf } from './api'
 
 const route = useRoute()
@@ -12,6 +12,7 @@ const isLogin = computed(() => route.path === '/login')
 const activeMenu = computed(() => route.path)
 const breadcrumb = computed(() => route.path === '/group-reply-config'
   ? '回复控制'
+  : route.path.startsWith('/media/') ? `图片表情包管理 / ${route.path.endsWith('memes') ? '表情包' : '图片'}`
   : `TencentDB / ${route.path.endsWith('prompts') ? '提示词页' : '记忆页'}`)
 
 async function logout() {
@@ -48,6 +49,11 @@ async function logout() {
           <el-menu-item index="/tencentdb/l1/prompts"><el-icon><Key /></el-icon><span>提示词页</span></el-menu-item>
         </el-sub-menu>
         <el-menu-item index="/group-reply-config"><el-icon><ChatDotRound /></el-icon><span>回复控制</span></el-menu-item>
+        <el-sub-menu index="media">
+          <template #title><el-icon><Picture /></el-icon><span>图片表情包管理</span></template>
+          <el-menu-item index="/media/images">图片</el-menu-item>
+          <el-menu-item index="/media/memes">表情包</el-menu-item>
+        </el-sub-menu>
       </el-menu>
       <div class="sidebar-foot"><span v-if="!collapsed">L1 管理 · 内网模式</span></div>
     </el-aside>

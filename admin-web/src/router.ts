@@ -3,6 +3,7 @@ import LoginPage from './pages/LoginPage.vue'
 import MemoriesPage from './pages/MemoriesPage.vue'
 import PromptPage from './pages/PromptPage.vue'
 import GroupReplyConfigPage from './pages/GroupReplyConfigPage.vue'
+import MediaPage from './pages/MediaPage.vue'
 
 export const router = createRouter({
   history: createWebHistory('/admin/'),
@@ -12,5 +13,7 @@ export const router = createRouter({
     { path: '/tencentdb/l1/memories', component: MemoriesPage },
     { path: '/tencentdb/l1/prompts', component: PromptPage },
     { path: '/group-reply-config', component: GroupReplyConfigPage },
+    { path: '/media/images', component: MediaPage, props: { kind: 'image' } },
+    { path: '/media/memes', component: MediaPage, props: { kind: 'meme' } },
   ],
 })

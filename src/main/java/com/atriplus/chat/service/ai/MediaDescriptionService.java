@@ -3,6 +3,8 @@ package com.atriplus.chat.service.ai;
 import com.atriplus.chat.client.dto.ChatImageItem;
 import com.atriplus.chat.dto.MediaOutcome;
 import com.atriplus.chat.mapper.MediaDescriptionMapper;
+import com.atriplus.chat.service.media.MediaUrl;
+import com.atriplus.chat.service.media.MediaRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -22,16 +24,19 @@ public class MediaDescriptionService {
     private final VisionDescriptionClient visionClient;
     private final ObjectMapper objectMapper;
     private final TaskExecutor mediaDescriptionExecutor;
+    private final MediaRepository mediaRepository;
 
     public MediaDescriptionService(
             MediaDescriptionMapper mediaDescriptionMapper,
             VisionDescriptionClient visionClient,
             ObjectMapper objectMapper,
-            @Qualifier("mediaDescriptionExecutor") TaskExecutor mediaDescriptionExecutor) {
+            @Qualifier("mediaDescriptionExecutor") TaskExecutor mediaDescriptionExecutor,
+            MediaRepository mediaRepository) {
         this.mediaDescriptionMapper = mediaDescriptionMapper;
         this.visionClient = visionClient;
         this.objectMapper = objectMapper;
         this.mediaDescriptionExecutor = mediaDescriptionExecutor;
+        this.mediaRepository = mediaRepository;
     }
 
     public MediaOutcome resolve(String file, String summary, String url, boolean collectImages) {
@@ -39,6 +44,22 @@ public class MediaDescriptionService {
         String kind = meme ? "meme" : "image";
         if (file == null || file.isBlank()) {
             return new MediaOutcome(meme ? "动画表情（缺少 file）" : "图片（缺少 file）", null);
+        }
+
+        try {
+            // 删除标记先于缓存和原图发送检查；引用仍然只读取描述，不更新地址或发起识别。
+            if (mediaRepository.isDeleted(file)) return ignored(meme);
+        } catch (Exception exception) {
+            log.warn("媒体删除标记读取失败，file={}，reason={}", file, exception.getClass().getSimpleName());
+            return new MediaOutcome(meme ? "动画表情（暂不可用）" : "图片（暂不可用）", null);
+        }
+        if (collectImages) {
+            try {
+                Long id = mediaRepository.observe(file, kind, validUrl(url) ? url : null);
+                if (id == null) return ignored(meme);
+            } catch (Exception exception) {
+                log.warn("媒体地址保存失败，file={}，reason={}", file, exception.getClass().getSimpleName());
+            }
         }
 
         try {
@@ -59,22 +80,25 @@ public class MediaDescriptionService {
         if (!collectImages) {
             return new MediaOutcome(meme ? "被引用动画表情（暂无描述）" : "被引用图片（暂无描述）", null);
         }
-        if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) {
+        if (!validUrl(url)) {
             return new MediaOutcome(meme ? "动画表情（图片地址不可用）" : "图片（图片地址不可用）", null);
         }
 
         if (meme) {
             // 首次表情先把原图送入当前 Agent 请求；描述任务在后台写库。
             ChatImageItem image = new ChatImageItem(file, summary, url);
+            Long revision = null;
             try {
-                if (mediaDescriptionMapper.claim(file, kind)) {
-                    mediaDescriptionExecutor.execute(() -> recognizeAndStore(file, kind, url));
+                revision = mediaDescriptionMapper.claim(file, kind);
+                if (revision != null) {
+                    long taskRevision = revision;
+                    mediaDescriptionExecutor.execute(() -> recognizeAndStore(file, kind, url, taskRevision));
                 }
             } catch (Exception exception) {
                 log.warn("动画表情描述任务提交失败，file={}，reason={}", file,
                         exception.getClass().getSimpleName());
                 try {
-                    mediaDescriptionMapper.markFailed(file);
+                    if (revision != null) mediaDescriptionMapper.markFailed(file, revision);
                 } catch (Exception storeException) {
                     log.warn("动画表情描述失败状态保存失败，file={}，reason={}", file,
                             storeException.getClass().getSimpleName());
@@ -84,24 +108,29 @@ public class MediaDescriptionService {
         }
 
         // 普通图片在本轮同步识别；缓存写入失败时仍使用本次成功生成的描述。
-        boolean claimed;
+        Long revision;
         boolean storeAvailable = true;
         try {
-            claimed = mediaDescriptionMapper.claim(file, kind);
+            revision = mediaDescriptionMapper.claim(file, kind);
         } catch (Exception exception) {
             log.warn("图片描述缓存抢占失败，file={}，reason={}", file,
                     exception.getClass().getSimpleName());
-            claimed = true;
+            revision = 0L;
             storeAvailable = false;
         }
-        if (!claimed) {
+        if (revision == null) {
             return new MediaOutcome("图片内容暂时无法识别", null);
         }
         try {
             JsonNode description = visionClient.describe(kind, url);
             if (storeAvailable) {
                 try {
-                    mediaDescriptionMapper.saveReady(file, description.toString());
+                    int saved = mediaDescriptionMapper.saveReady(file, revision, description.toString());
+                    if (saved == 0) {
+                        if (mediaRepository.isDeleted(file)) return ignored(false);
+                        var current = mediaDescriptionMapper.findReady(file);
+                        if (current.isPresent()) description = objectMapper.readTree(current.get().json());
+                    }
                 } catch (Exception storeException) {
                     log.warn("图片描述缓存写入失败，file={}，reason={}", file,
                             storeException.getClass().getSimpleName());
@@ -112,7 +141,7 @@ public class MediaDescriptionService {
             log.warn("图片描述失败，file={}，reason={}", file,
                     visionFailureReason(exception));
             try {
-                mediaDescriptionMapper.markFailed(file);
+                if (storeAvailable) mediaDescriptionMapper.markFailed(file, revision);
             } catch (Exception storeException) {
                 log.warn("图片描述失败状态保存失败，file={}，reason={}", file,
                         storeException.getClass().getSimpleName());
@@ -121,20 +150,29 @@ public class MediaDescriptionService {
         return new MediaOutcome("图片内容暂时无法识别", null);
     }
 
-    private void recognizeAndStore(String file, String kind, String url) {
+    private void recognizeAndStore(String file, String kind, String url, long revision) {
         try {
             JsonNode description = visionClient.describe(kind, url);
-            mediaDescriptionMapper.saveReady(file, description.toString());
+            mediaDescriptionMapper.saveReady(file, revision, description.toString());
         } catch (Exception exception) {
             log.warn("动画表情描述失败，file={}，reason={}", file,
                     visionFailureReason(exception));
             try {
-                mediaDescriptionMapper.markFailed(file);
+                mediaDescriptionMapper.markFailed(file, revision);
             } catch (Exception storeException) {
                 log.warn("动画表情描述失败状态保存失败，file={}，reason={}", file,
                         storeException.getClass().getSimpleName());
             }
         }
+    }
+
+    private boolean validUrl(String url) {
+        try { MediaUrl.validateUrl(url); return true; }
+        catch (IllegalArgumentException exception) { return false; }
+    }
+
+    private MediaOutcome ignored(boolean meme) {
+        return new MediaOutcome(meme ? "动画表情（已忽略）" : "图片（已忽略）", null);
     }
 
     private String visionFailureReason(Exception exception) {

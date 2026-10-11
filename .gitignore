@@ -1,7 +1,9 @@
 target/
+data/media/
 admin-web/node_modules/
 admin-web/dist/
 admin-web/.npm-cache/
 .idea/
 *.iml
 application-local.yml
+/src/test/

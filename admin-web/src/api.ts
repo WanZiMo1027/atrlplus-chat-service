@@ -46,6 +46,27 @@ export interface GroupReplyConfig {
   enabled: boolean
 }
 
+export type MediaKind = 'image' | 'meme'
+export interface MediaDescription {
+  content: string
+  text?: string
+  emotion?: string
+  memeMeaning?: string
+  confidence?: number
+}
+export interface MediaItem {
+  id: string
+  fileId: string
+  kind: MediaKind
+  status: 'processing' | 'ready' | 'failed'
+  description: MediaDescription | null
+  sourceUrl: string | null
+  revision: number
+  createdAt: string
+  updatedAt: string
+}
+export interface MediaPage { items: MediaItem[]; total: number }
+
 let csrfToken = ''
 
 async function adminFetch(url: string, init?: RequestInit): Promise<Response> {

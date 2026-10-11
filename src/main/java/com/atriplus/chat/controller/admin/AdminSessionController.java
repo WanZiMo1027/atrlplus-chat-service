@@ -1,4 +1,4 @@
-package com.atriplus.chat.controller;
+package com.atriplus.chat.controller.admin;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;

@@ -1,6 +1,6 @@
 # TencentDB L1 控制面板
 
-控制面板由 chat-service 提供，入口为 `http://localhost:8080/admin/`。侧边栏包含 TencentDB 的“记忆页”“提示词页”和 QQ 群“回复控制”。浏览器只访问 chat-service；TencentDB 凭据仍由 agent-service 持有。
+控制面板由 chat-service 提供，入口为 `http://localhost:8080/admin/`。侧边栏包含 TencentDB 的“记忆页”“提示词页”、QQ 群“回复控制”和“图片表情包管理”的“图片”“表情包”。TencentDB 凭据仍由 agent-service 持有；媒体预览由浏览器直接读取保存的原始 URL。
 
 ## 启用
 
@@ -33,5 +33,11 @@
 - 原有 `/internal/memory/l1-prompt/init` 在已有自定义绑定时不再覆盖生效提示词；启用 Agent 管理接口时，该入口也要求内部令牌。
 - 当前 TencentDB MemoryCore 的 L1 查询响应不提供可靠的 `session_id`，因此记忆页不支持按 QQ 群筛选。人格和模型参数尚未加入面板。
 - 回复控制页列出已收到消息并记录的 QQ 群。新群默认允许回复；管理员关闭后，该群消息在后台刷新时跳过 Agent 调用。群名称和回复状态在 Redis 缓存 5 分钟，管理员切换开关会同步更新状态缓存。
+- 图片表情包管理页分别为 `/admin/media/images` 和 `/admin/media/memes`，管理 `media_description` 接收媒体描述库，不修改用于发送回复表情的 `memes/custom-faces.json`。上线前执行更新后的 [`media-description.sql`](sql/media-description.sql)，地址保存和识别说明见 [媒体描述文档](media-description.md)。媒体管理直接使用 chat-service 的 PostgreSQL，不依赖 Agent 在线。
+- 两页支持每页 20 条、描述关键词搜索、识别状态筛选、缩略图与原图预览、URL 新增和描述编辑。新增可填写 OneBot 文件 ID，留空自动生成 `manual:<UUID>`；不支持文件上传。图片描述为画面内容，表情包还可编辑文字、情绪、聊天含义及 0～1 的置信度。人工修改立即供后续消息使用，后台识别不会覆盖它。
+- 编辑时文件 ID 和类型固定；更换 URL 后预览使用新地址。旧记录缺少地址时显示“暂无预览地址”，仍可只修改描述。URL 过期或浏览器无法访问时显示“预览不可用”，描述仍保留。服务不下载本地副本。
+- 删除会永久忽略该文件 ID、隐藏记录；同一文件再次收到也不重新入库，无面板恢复入口。删除确认框说明此行为，已删除的 ID 也不能手动重新新增。编辑和删除携带 `revision`，与后台识别或其他管理员冲突时返回 409，保留编辑内容并提示刷新重试。
+
+媒体 API 前缀为 `/api/admin/media`：`GET` 按 `kind/query/status/page/pageSize` 返回 `items/total`，`POST` 新增，`PUT /{id}` 修改，`DELETE /{id}` 删除。新增/编辑正文使用 `sourceUrl`、`description` 对象；新增包含 `kind`、可选 `fileId`，编辑/删除必须包含 `revision`。数字 ID 在 JSON 中以字符串返回，避免浏览器精度损失。全部接口复用管理员会话，写操作要求 CSRF；响应返回原始 URL 和描述，不包含下载状态或磁盘路径。
 
 PostgreSQL 管理表为 `admin_l1_prompt_state`、`admin_l1_prompt_history` 和 `admin_l1_audit`，仅在启用面板时通过 `CREATE TABLE IF NOT EXISTS` 建立。发布失败保留草稿；远端发布成功而本地确认中断时，下一次读取会根据待确认记录与远端生效内容对账。

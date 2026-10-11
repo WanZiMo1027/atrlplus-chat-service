@@ -1,5 +1,6 @@
-package com.atriplus.chat.controller;
+package com.atriplus.chat.controller.admin;
 
+import com.atriplus.chat.controller.GroupReplyConfigController;
 import feign.FeignException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -9,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
 /** 管理 API 只返回可展示的错误，不透传 TencentDB 或内部服务响应正文。 */
-@RestControllerAdvice(assignableTypes = {L1AdminApiController.class, GroupReplyConfigController.class})
+@RestControllerAdvice(assignableTypes = {L1AdminApiController.class, GroupReplyConfigController.class, MediaAdminController.class})
 public class AdminApiExceptionHandler {
     public record ApiError(String message) {}
 
