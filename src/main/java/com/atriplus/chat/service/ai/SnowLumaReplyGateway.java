@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /** 通过 SnowLuma OneBot HTTP API 发送 Agent 回复。 */
 @Service
@@ -36,6 +37,13 @@ public class SnowLumaReplyGateway implements ReplyGateway {
      */
     @Override
     public void send(String conversationId, ChatTarget target, AgentChatResponse response, Long replyToMessageId) {
+        sendWhileOwned(conversationId, target, response, replyToMessageId, () -> true);
+    }
+
+    /** 多条文字和表情逐次校验锁，避免发送到一半失去资格后仍继续发送。 */
+    @Override
+    public void sendWhileOwned(String conversationId, ChatTarget target, AgentChatResponse response,
+            Long replyToMessageId, BooleanSupplier canSend) {
         if (!response.shouldReply()) {
             return;
         }
@@ -59,6 +67,7 @@ public class SnowLumaReplyGateway implements ReplyGateway {
 
         // 主要流程：第一条文字携带 AI 选择的引用，后续文字作为独立消息发送。
         for (int index = 0; index < replies.size(); index++) {
+            if (!canSend.getAsBoolean()) return;
             String reply = replies.get(index);
             if (index == 0 && replyToMessageId != null) {
                 sendQuotedText(target, replyToMessageId, reply);
@@ -76,6 +85,8 @@ public class SnowLumaReplyGateway implements ReplyGateway {
             List<SendImageMessageSegment> imageMessage = List.of(
                     new SendImageMessageSegment("image", new SendImageMessageData(meme.url(), 1, "[动画表情]"))
             );
+            // 表情查找结束后再校验，已发出的文字不重放，未发内容停止发送。
+            if (!canSend.getAsBoolean()) return;
             sendMessage(target, imageMessage);
         }
 

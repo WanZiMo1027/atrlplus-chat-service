@@ -7,3 +7,4 @@ admin-web/.npm-cache/
 *.iml
 application-local.yml
 /src/test/
+/docs/

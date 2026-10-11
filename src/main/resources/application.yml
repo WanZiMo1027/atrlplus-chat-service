@@ -33,3 +33,13 @@ admin:
   enabled: ${ADMIN_ENABLED:true}
   password: ${ADMIN_PASSWORD:}
   internal-token: ${ADMIN_INTERNAL_TOKEN:}
+
+# 消息条数不触发刷新；空闲防抖、调用间隔与锁租期相互独立。
+chat:
+  buffer:
+    debounce-millis: 5000
+    min-interval-millis: 8000
+    max-text-chars: 32768
+    max-images: 8
+    lock-lease-millis: 120000
+    lock-renew-millis: 10000
