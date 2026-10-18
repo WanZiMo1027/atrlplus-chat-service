@@ -15,4 +15,6 @@ public interface GroupReplyConfigMapper {
     List<GroupReplyConfig> listAll();
 
     int updateEnabled(@Param("groupId") long groupId, @Param("enabled") boolean enabled);
+
+    int updateReceiveEnabled(@Param("groupId") long groupId, @Param("enabled") boolean enabled);
 }

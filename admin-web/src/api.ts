@@ -44,6 +44,7 @@ export interface GroupReplyConfig {
   groupId: number
   groupName: string
   enabled: boolean
+  receiveEnabled: boolean
 }
 
 export type MediaKind = 'image' | 'meme'

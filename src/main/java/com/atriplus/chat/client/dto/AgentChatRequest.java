@@ -10,6 +10,15 @@ import java.util.List;
  */
 public record AgentChatRequest(
         String conversationId,
-        List<ChatMessageItem> messages
+        List<ChatMessageItem> messages,
+        Boolean replyEnabled
 ) {
+    public AgentChatRequest {
+        // 旧调用方未提供该字段时，继续允许 Agent 正常决策。
+        replyEnabled = !Boolean.FALSE.equals(replyEnabled);
+    }
+
+    public AgentChatRequest(String conversationId, List<ChatMessageItem> messages) {
+        this(conversationId, messages, true);
+    }
 }

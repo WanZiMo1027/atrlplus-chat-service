@@ -33,4 +33,9 @@ public class GroupReplyConfigController {
     public GroupReplyConfig updateStatus(@Valid @RequestBody StatusRequest request) {
         return service.updateEnabled(request.groupId(), request.enabled());
     }
+
+    @PutMapping("/receive-status")
+    public GroupReplyConfig updateReceiveStatus(@Valid @RequestBody StatusRequest request) {
+        return service.updateReceiveEnabled(request.groupId(), request.enabled());
+    }
 }

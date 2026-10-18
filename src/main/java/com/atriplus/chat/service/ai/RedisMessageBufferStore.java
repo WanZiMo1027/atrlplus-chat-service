@@ -3,6 +3,7 @@ package com.atriplus.chat.service.ai;
 import com.atriplus.chat.config.MessageBufferProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
@@ -118,6 +119,13 @@ public class RedisMessageBufferStore {
             return 0
             """, Long.class);
 
+    private static final DefaultRedisScript<Long> DISCARD = new DefaultRedisScript<>("""
+            -- 管理员关闭群接收：清除队列并撤销旧任务资格，不能在重新开启后继续处理旧快照。
+            redis.call('DEL', KEYS[1], KEYS[3], KEYS[4])
+            redis.call('ZREM', KEYS[2], ARGV[1])
+            return 1
+            """, Long.class);
+
     @Autowired
     public RedisMessageBufferStore(StringRedisTemplate redis, MessageBufferProperties properties) {
         this(redis, properties, "atriplus:chat:buffer:");
@@ -183,6 +191,17 @@ public class RedisMessageBufferStore {
     public long finish(String id, String token, long now) {
         Long result = redis.execute(FINISH, keys(id), id, token, String.valueOf(now));
         return result == null ? -1 : result;
+    }
+
+    /** 同一群可能对应多个登录机器人；只扫描到期索引中属于该群的会话。 */
+    public void discardGroup(long groupId) {
+        var options = ScanOptions.scanOptions().match("qq:*:group:" + groupId).count(100).build();
+        try (var cursor = redis.opsForZSet().scan(prefix + "due", options)) {
+            while (cursor.hasNext()) {
+                String id = cursor.next().getValue();
+                if (id != null) redis.execute(DISCARD, keys(id), id);
+            }
+        }
     }
 
     private boolean success(Long result) {

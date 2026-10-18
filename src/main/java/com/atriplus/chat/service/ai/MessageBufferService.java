@@ -117,13 +117,14 @@ public class MessageBufferService {
             Long groupId = firstGroupMessage == null ? null : firstGroupMessage.target().targetId();
             Optional<JsonNode> firstDetail = Optional.empty();
             if (firstGroupMessage != null) {
-                // 主要流程：先查询群开关；关闭的群不生成描述，也不请求 Agent。
+                // 主要流程：接收开关才拦截整批；回复关闭的群仍须生成描述并送到 Agent 存档。
+                if (!groupReplyConfigService.isReceiveEnabled(groupId)) return;
                 firstDetail = messageLookup.getObject().getMessage(firstGroupMessage.snapshot().messageId());
                 String groupName = firstDetail
                         .filter(detail -> "group".equals(detail.path("message_type").asText())
                                 && detail.path("group_id").asLong(-1) == groupId)
                         .map(detail -> detail.path("group_name").asText(null)).orElse(null);
-                if (!groupReplyConfigService.registerAndIsEnabled(groupId, groupName)) return;
+                if (!groupReplyConfigService.registerAndIsReceiveEnabled(groupId, groupName)) return;
             }
 
             AgentBatchBudget budget = new AgentBatchBudget(properties);
@@ -150,15 +151,22 @@ public class MessageBufferService {
             consumed = true;
             if (items.isEmpty() || !owns(lease)) return;
 
-            var response = agentClient.chat(new AgentChatRequest(lease.id, List.copyOf(items)));
+            if (groupId != null && !groupReplyConfigService.isReceiveEnabled(groupId)) return;
+            boolean replyEnabled = groupId == null || groupReplyConfigService.isReplyEnabled(groupId);
+            // 主要流程：只记录模式由 Agent 跳过回复模型，本轮权限随后开启也不补发。
+            var response = agentClient.chat(new AgentChatRequest(lease.id, List.copyOf(items), replyEnabled));
             List<BufferedMessage> selected = messages.subList(0, batchCount);
             ChatTarget target = selected.stream().map(BufferedMessage::target)
                     .filter(Objects::nonNull).findFirst().orElse(null);
             // 引用只能映射本轮实际发送给 Agent 的消息，不能引用预算外后缀。
             Long replyToMessageId = resolveReplyToMessageId(selected, response.replyToEventId());
-            if (groupId != null && !groupReplyConfigService.isEnabled(groupId)) return;
+            if (!replyEnabled || (groupId != null && (!groupReplyConfigService.isReceiveEnabled(groupId)
+                    || !groupReplyConfigService.isReplyEnabled(groupId)))) return;
             if (!owns(lease)) return;
-            replyGateway.sendWhileOwned(lease.id, target, response, replyToMessageId, () -> owns(lease));
+            // 每条文字和表情发送前同时校验租约及两个群开关，处理期间关闭即可停止剩余发送。
+            replyGateway.sendWhileOwned(lease.id, target, response, replyToMessageId,
+                    () -> owns(lease) && (groupId == null || (groupReplyConfigService.isReceiveEnabled(groupId)
+                            && groupReplyConfigService.isReplyEnabled(groupId))));
         } catch (Exception exception) {
             // 沿用现有失败策略，不自动重放失败批次或部分已发送的回复。
             log.error("描述消息、调用 Agent 或发送回复失败，conversationId={}", lease.id, exception);

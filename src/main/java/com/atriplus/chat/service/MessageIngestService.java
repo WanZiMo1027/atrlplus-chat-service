@@ -2,6 +2,7 @@ package com.atriplus.chat.service;
 
 import com.atriplus.chat.dto.BufferedMessage;
 import com.atriplus.chat.dto.IncomingChatMessage;
+import com.atriplus.chat.dto.ChatType;
 import com.atriplus.chat.event.MessageDetectedEvent;
 import com.atriplus.chat.service.ai.MessageBufferService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,6 +21,9 @@ public class MessageIngestService {
 
     @Autowired
     private MessageBufferService messageBufferService;
+
+    @Autowired
+    private GroupReplyConfigService groupReplyConfigService;
 
     /**
      * 处理消息
@@ -65,6 +69,12 @@ public class MessageIngestService {
      * 接收适配器已经标准化的消息。
      */
     public void ingest(IncomingChatMessage event) {
+        // 主要流程：只按群接收开关拦截入队；关闭回复仍须把聊天记录送到 Agent。
+        if (event.target() != null && event.target().type() == ChatType.GROUP && event.snapshot() != null
+                && !groupReplyConfigService.isReceiveEnabled(event.target().targetId())) {
+            log.info("群消息接收已关闭，忽略消息 eventId={}, groupId={}", event.eventId(), event.target().targetId());
+            return;
+        }
         // 主要流程：将统一消息持久化到 Redis 缓冲，后续由定时任务批量调用 Agent。
         BufferedMessage message = new BufferedMessage(
                 event.eventId(),

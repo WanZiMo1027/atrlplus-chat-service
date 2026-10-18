@@ -7,6 +7,7 @@
             <arg column="group_id" javaType="_long"/>
             <arg column="group_name" javaType="String"/>
             <arg column="enabled" javaType="_boolean"/>
+            <arg column="receive_enabled" javaType="_boolean"/>
         </constructor>
     </resultMap>
 
@@ -20,13 +21,13 @@
     </insert>
 
     <select id="findByGroupId" resultMap="groupConfig">
-        select group_id, group_name, enabled
+        select group_id, group_name, enabled, receive_enabled
         from qq_group_reply_config
         where group_id = #{groupId}
     </select>
 
     <select id="listAll" resultMap="groupConfig">
-        select group_id, group_name, enabled
+        select group_id, group_name, enabled, receive_enabled
         from qq_group_reply_config
         order by group_id
     </select>
@@ -34,6 +35,12 @@
     <update id="updateEnabled">
         update qq_group_reply_config
         set enabled = #{enabled}
+        where group_id = #{groupId}
+    </update>
+
+    <update id="updateReceiveEnabled">
+        update qq_group_reply_config
+        set receive_enabled = #{enabled}
         where group_id = #{groupId}
     </update>
 </mapper>
