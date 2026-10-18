@@ -121,3 +121,16 @@ export async function requestAdmin<T>(path: string, init: RequestInit = {}): Pro
 export function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return requestAdmin<T>(`/tencentdb/l1${path}`, init)
 }
+
+export interface HistoryConversation { conversationId: string; type: 'group' | 'private' | 'other'; targetId: string; selfId: string | null }
+export interface HistoryConversationPage { items: HistoryConversation[]; nextCursor: string }
+export interface HistoryMessage {
+  eventId: string; senderName: string; senderId?: string | null; text: string | null
+  images: { file: string | null; summary: string | null; url: string | null }[]
+}
+export interface HistoryDecision { shouldReply: boolean; replies: string[]; replyToEventId: string | null; meme: string | null }
+export interface HistoryBatch { sequence: number; messages: HistoryMessage[]; decision: HistoryDecision | null; completed: boolean; compressed: boolean }
+export interface HistoryMessagePage {
+  conversationId: string; revision: number; nextSequence: number; summary: string; summaryVersion: number
+  lastCompressedSequence: number; matchingBatches: number; batches: HistoryBatch[]; nextBeforeSequence: number | null
+}

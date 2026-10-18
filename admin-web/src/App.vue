@@ -10,7 +10,7 @@ const collapsed = ref(false)
 const token = ref('')
 const isLogin = computed(() => route.path === '/login')
 const activeMenu = computed(() => route.path)
-const breadcrumb = computed(() => route.path === '/group-reply-config'
+const breadcrumb = computed(() => route.path === '/chat-history' ? '聊天记录' : route.path === '/group-reply-config'
   ? '回复控制'
   : route.path.startsWith('/media/') ? `图片表情包管理 / ${route.path.endsWith('memes') ? '表情包' : '图片'}`
   : `TencentDB / ${route.path.endsWith('prompts') ? '提示词页' : '记忆页'}`)
@@ -48,6 +48,7 @@ async function logout() {
           <el-menu-item index="/tencentdb/l1/memories"><el-icon><Document /></el-icon><span>记忆页</span></el-menu-item>
           <el-menu-item index="/tencentdb/l1/prompts"><el-icon><Key /></el-icon><span>提示词页</span></el-menu-item>
         </el-sub-menu>
+        <el-menu-item index="/chat-history"><el-icon><ChatDotRound /></el-icon><span>聊天记录</span></el-menu-item>
         <el-menu-item index="/group-reply-config"><el-icon><ChatDotRound /></el-icon><span>回复控制</span></el-menu-item>
         <el-sub-menu index="media">
           <template #title><el-icon><Picture /></el-icon><span>图片表情包管理</span></template>
