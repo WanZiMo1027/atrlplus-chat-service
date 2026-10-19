@@ -5,6 +5,7 @@ import PromptPage from './pages/PromptPage.vue'
 import GroupReplyConfigPage from './pages/GroupReplyConfigPage.vue'
 import MediaPage from './pages/MediaPage.vue'
 import ChatHistoryPage from './pages/ChatHistoryPage.vue'
+import StyleLearningPage from './pages/StyleLearningPage.vue'
 
 export const router = createRouter({
   history: createWebHistory('/admin/'),
@@ -14,6 +15,7 @@ export const router = createRouter({
     { path: '/tencentdb/l1/memories', component: MemoriesPage },
     { path: '/tencentdb/l1/prompts', component: PromptPage },
     { path: '/chat-history', component: ChatHistoryPage },
+    { path: '/style-learning', component: StyleLearningPage },
     { path: '/group-reply-config', redirect: '/group-reply-config/reply' },
     { path: '/group-reply-config/receive', component: GroupReplyConfigPage, props: { mode: 'receive' } },
     { path: '/group-reply-config/reply', component: GroupReplyConfigPage, props: { mode: 'reply' } },

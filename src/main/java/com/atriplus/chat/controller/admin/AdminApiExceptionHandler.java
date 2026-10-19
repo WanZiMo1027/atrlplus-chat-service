@@ -4,19 +4,20 @@ import com.atriplus.chat.controller.GroupReplyConfigController;
 import feign.FeignException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
 /** 管理 API 只返回可展示的错误，不透传 TencentDB 或内部服务响应正文。 */
-@RestControllerAdvice(assignableTypes = {L1AdminApiController.class, GroupReplyConfigController.class, MediaAdminController.class, ChatHistoryAdminController.class})
+@RestControllerAdvice(assignableTypes = {L1AdminApiController.class, GroupReplyConfigController.class, MediaAdminController.class, ChatHistoryAdminController.class, StyleLearningAdminController.class})
 public class AdminApiExceptionHandler {
     public record ApiError(String message) {}
 
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiError> status(ResponseStatusException exception) {
-        return ResponseEntity.status(exception.getStatusCode())
+        return ResponseEntity.status(exception.getStatusCode()).cacheControl(CacheControl.noStore())
                 .body(new ApiError(exception.getReason()));
     }
 
@@ -31,12 +32,12 @@ public class AdminApiExceptionHandler {
         };
         String message = (status == HttpStatus.BAD_GATEWAY || status == HttpStatus.SERVICE_UNAVAILABLE)
                 ? "上游服务暂时不可用，请稍后重试" : "远端请求未完成，请刷新后重试";
-        return ResponseEntity.status(status).body(new ApiError(message));
+        return ResponseEntity.status(status).cacheControl(CacheControl.noStore()).body(new ApiError(message));
     }
 
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ApiError> database(DataAccessException exception) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).cacheControl(CacheControl.noStore())
                 .body(new ApiError("数据库暂时不可用，请稍后重试"));
     }
 }

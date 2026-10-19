@@ -135,3 +135,20 @@ export interface HistoryMessagePage {
   conversationId: string; revision: number; nextSequence: number; summary: string; summaryVersion: number
   lastCompressedSequence: number; matchingBatches: number; batches: HistoryBatch[]; nextBeforeSequence: number | null
 }
+
+
+export interface StyleSource {
+  sequence: number; eventId: string; senderId: string | null; senderName: string | null
+  timestamp: number | null; text: string; background: string; human: boolean; eligible: boolean
+}
+export interface StyleFragment {
+  fingerprint: string; scene: string; intent: string; emotion: string; seriousness: string; interaction: string
+  context: StyleSource[]; replies: StyleSource[]
+}
+export interface StyleFragmentView {
+  id: number; conversationId: string; throughSequence: number; fragment: StyleFragment; embeddingStatus: string
+}
+export interface StyleFragmentPage { items: StyleFragmentView[]; nextAfterId: number | null; version: string; total: number }
+export interface StyleVersionOption { version: string; fragmentCount: number; current: boolean }
+export interface StyleConversationCatalog { conversationId: string; groupId: string; selfId: string; versions: StyleVersionOption[] }
+export interface StyleCatalog { currentVersion: string; conversations: StyleConversationCatalog[]; intents: string[]; seriousnessValues: string[] }
